@@ -16,6 +16,10 @@
           hickory/parse
           hickory/as-hickory))
 
+(defn parse-int [number-string]
+  (try (Integer/parseInt number-string)
+       (catch Exception e nil)))
+
 (defn page-items
   [page]
   (s/select (s/class "results__sold-normal-item") page))
@@ -65,7 +69,7 @@
                    :content
                    first)
           (clojure.string/replace #"[^0-9]" "")
-          Integer/parseInt))
+          parse-int))
 
 (defn item-sale-price
   [item]
@@ -77,7 +81,7 @@
                    :content
                    first)
           (clojure.string/replace #"[^0-9]" "")
-          Integer/parseInt))
+          parse-int))
 
 (defn item-sqm
   [item]
@@ -89,7 +93,7 @@
           (clojure.string/split #"\n")
           second
           (clojure.string/replace #"[^0-9]" "")
-          Integer/parseInt))
+          parse-int))
 
 (defn item-rooms
   [item]
@@ -101,7 +105,7 @@
           (clojure.string/split #"m")
           second
           (clojure.string/replace #"[^0-9]" "")
-          Integer/parseInt))
+          parse-int))
 
 (defn item-address
   [item]
@@ -131,7 +135,7 @@
           (nth 9)
           :content
           first
-          Integer/parseInt))
+          parse-int))
 
 (defn all-items
   [url]
