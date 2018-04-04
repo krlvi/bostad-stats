@@ -5,7 +5,11 @@
             [hickory.select :as s]
             [clj-time.core :as t]
             [clj-time.format :as f]
-            [com.stuartsierra.frequencies :as freq]))
+            [com.stuartsierra.frequencies :as freq]
+            [uswitch.lambada.core :refer [deflambdafn]]
+            [clojure.data.json :as json]
+            [clojure.java.io :as io])
+  (:import (java.util.concurrent Executors)))
 
 (def url "https://www.hemnet.se/salda/bostader?location_ids%5B%5D=898754&location_ids%5B%5D=473379&location_ids%5B%5D=898472&location_ids%5B%5D=473448&item_types%5B%5D=bostadsratt&page=")
 
@@ -158,7 +162,30 @@
     frequency-stats
     (sort-by #(get-in % [:date :month]))))
 
+(defn reset-agents
+  []
+  ;; Set just like in clojure.lang.Agent
+  (set-agent-send-executor! (Executors/newFixedThreadPool (.. Runtime (getRuntime) (availableProcessors))))
+  (set-agent-send-off-executor! (Executors/newCachedThreadPool)))
+
+(defn handle-event
+  [event]
+  (println "Got the following event: " (pr-str event))
+  ;; Since the AWS Lambda will reuse the environment the agent thread pools are reset
+  (reset-agents)
+  (let [stats (doall (sort-by #(get-in % [:date :month]) (price-stats-per-month (all-items url))))]
+    ;; Shutdown to avoid extra wait from the pmap implementation
+    (shutdown-agents)
+    stats))
+
+(deflambdafn bostad-stats.core.run
+             [in out ctx]
+             (let [event (json/read (io/reader in))
+                   res (handle-event event)]
+               (with-open [w (io/writer out)]
+                 (json/write res w))))
+
 (defn -main
   "Run this thing"
   [& args]
-  (println (sort-by #(get-in % [:date :month]) (price-stats-per-month (all-items url)))))
+  (handle-event nil))

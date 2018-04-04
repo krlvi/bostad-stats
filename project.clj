@@ -7,7 +7,8 @@
                  [clj-http "3.7.0"]
                  [hickory "0.7.1"]
                  [clj-time "0.14.2"]
-                 [com.stuartsierra/frequencies "0.1.0"]]
+                 [com.stuartsierra/frequencies "0.1.0"]
+                 [uswitch/lambada "0.1.2"]]
   :main ^:skip-aot bostad-stats.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all}})
