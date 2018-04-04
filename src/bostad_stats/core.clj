@@ -173,7 +173,7 @@
   (println "Got the following event: " (pr-str event))
   ;; Since the AWS Lambda will reuse the environment the agent thread pools are reset
   (reset-agents)
-  (let [stats (doall (sort-by #(get-in % [:date :month]) (price-stats-per-month (all-items url))))]
+  (let [stats (doall (sort-by #(get-in % [:date :month]) (price-stats-per-month (all-items (get event "url")))))]
     ;; Shutdown to avoid extra wait from the pmap implementation
     (shutdown-agents)
     stats))
