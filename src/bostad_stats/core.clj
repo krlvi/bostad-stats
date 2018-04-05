@@ -15,7 +15,7 @@
 
 (defn page
   [url page_num]
-  (some-> (client/get (str url page_num))
+  (some-> (client/get (str url page_num) {:cookie-policy :standard})
           :body
           hickory/parse
           hickory/as-hickory))
@@ -168,15 +168,25 @@
   (set-agent-send-executor! (Executors/newFixedThreadPool (.. Runtime (getRuntime) (availableProcessors))))
   (set-agent-send-off-executor! (Executors/newCachedThreadPool)))
 
+(defn format-lambda-response
+  [body]
+  {"statusCode"      200
+   "headers"         {"key" "value"}
+   "isBase64Encoded" false
+   "body"            (json/write-str body)})
+
 (defn handle-event
   [event]
   (println "Got the following event: " (pr-str event))
-  ;; Since the AWS Lambda will reuse the environment the agent thread pools are reset
   (reset-agents)
-  (let [stats (doall (sort-by #(get-in % [:date :month]) (price-stats-per-month (all-items (get event "url")))))]
-    ;; Shutdown to avoid extra wait from the pmap implementation
-    (shutdown-agents)
-    stats))
+  (let
+    [url (-> event (get "body") (json/read-str)(get "url"))]
+    (println "url is " url)
+    (let [stats (doall (sort-by #(get-in % [:date :month]) (price-stats-per-month (all-items url))))]
+      ;; Shutdown to avoid extra wait from the pmap implementation
+      (println "cleanup")
+      (shutdown-agents)
+      (format-lambda-response {"stats" stats}))))
 
 (deflambdafn bostad-stats.core.run
              [in out ctx]
@@ -188,4 +198,5 @@
 (defn -main
   "Run this thing"
   [& args]
-  (handle-event nil))
+  (println (doall (sort-by #(get-in % [:date :month]) (price-stats-per-month (all-items url)))))
+  (shutdown-agents))
