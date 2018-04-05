@@ -144,7 +144,7 @@
 (defn all-items
   [url]
   (apply concat (pmap #(parsed-page-items (page url %))
-                      (range 1 (last-page url)))))
+                         (range 1 (last-page url)))))
 
 (defn frequency-stats
   [items]
@@ -165,8 +165,10 @@
 (defn reset-agents
   []
   ;; Set just like in clojure.lang.Agent
-  (set-agent-send-executor! (Executors/newFixedThreadPool (.. Runtime (getRuntime) (availableProcessors))))
-  (set-agent-send-off-executor! (Executors/newCachedThreadPool)))
+  (if (.isShutdown clojure.lang.Agent/pooledExecutor)
+    (set-agent-send-executor! (Executors/newFixedThreadPool (+ 2 (.. Runtime (getRuntime) (availableProcessors))))))
+  (if (.isShutdown clojure.lang.Agent/soloExecutor)
+    (set-agent-send-off-executor! (Executors/newCachedThreadPool))))
 
 (defn format-lambda-response
   [body]
@@ -182,9 +184,8 @@
   (let
     [url (-> event (get "body") (json/read-str)(get "url"))]
     (println "url is " url)
-    (let [stats (doall (sort-by #(get-in % [:date :month]) (price-stats-per-month (all-items url))))]
+    (let [stats (sort-by #(get-in % [:date :month]) (price-stats-per-month (all-items url)))]
       ;; Shutdown to avoid extra wait from the pmap implementation
-      (println "cleanup")
       (shutdown-agents)
       (format-lambda-response {"stats" stats}))))
 
@@ -198,5 +199,6 @@
 (defn -main
   "Run this thing"
   [& args]
+  (reset-agents)
   (println (doall (sort-by #(get-in % [:date :month]) (price-stats-per-month (all-items url)))))
   (shutdown-agents))
